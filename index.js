@@ -21,7 +21,7 @@ export default function esbuildAddWrapper({
       // Intercept resolution of selected modules and redirect to the wrapper
       build.onResolve({ filter }, async ({ path, namespace, ...args }) => {
         // Avoid mutual recursion by appending our tag to the namespace
-        const nameRx = new RegExp(`\\b${name.replace(/(?=\W)/g, "\\")}\\b`),
+        const nameRx = new RegExp(`\\b${name.replace(/(?=\W)/g, "\\")}\\b`);
         if (nameRx.test(namespace)) return undefined;
         namespace = `${name}|${namespace}`;
 
