@@ -4,11 +4,18 @@ import { dirname } from "node:path";
 import process from "node:process";
 
 export default function esbuildAddWrapper({
-  filter = /.*/,                 // modules to wrap
-  loader,                        // wrapper esbuild loader ("jsx", "ts", etc)
+  filter,                        // modules to wrap
+  loader = "js",                 // wrapper esbuild loader ("jsx", "ts", etc)
   innerName = "wrapped-module",  // alias for wrapped module inside wrapper
   wrapper                        // import spec for the wrapper module
 }) {
+  if (!(filter instanceof RegExp)) {
+    throw new Error("esbuild-plugin-add-wrapper needs a filter RegExp param");
+  }
+  if (typeof wrapper !== "string" && !(wrapper instanceof String)) {
+    throw new Error("esbuild-plugin-add-wrapper needs a wrapper string param");
+  }
+
   const resolveDir = process.cwd();  // for interpreting the wrapper import
 
   // unique name for this instance in case multiple wrappers are in use
