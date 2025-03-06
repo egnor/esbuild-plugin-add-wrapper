@@ -16,8 +16,6 @@ export default function esbuildAddWrapper({
     throw new Error("esbuild-plugin-add-wrapper needs a wrapper string param");
   }
 
-  const resolveDir = process.cwd();  // for interpreting the wrapper import
-
   // unique name for this instance in case multiple wrappers are in use
   const name = `add-wrapper:${wrapper}`.replace("|", ":");
 
@@ -25,6 +23,8 @@ export default function esbuildAddWrapper({
     name,
 
     setup(build) {
+      const resolveDir = build.initialOptions.absWorkingDir || process.cwd();
+
       // Intercept resolution of selected modules and redirect to the wrapper
       build.onResolve({ filter }, async ({ path, namespace, ...args }) => {
         // Avoid mutual recursion by appending our tag to the namespace

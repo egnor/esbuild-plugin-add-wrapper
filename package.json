@@ -6,7 +6,11 @@
   "description": "Plugin for esbuild (esbuild.github.io) to transparently apply a wrapper module to specified modules",
   "homepage": "https://github.com/egnor/esbuild-plugin-add-wrapper#readme",
   "license": "MIT",
-  "keywords": [ "esbuild", "plugin", "js" ],
+  "keywords": [
+    "esbuild",
+    "plugin",
+    "js"
+  ],
   "main": "index.js",
   "name": "esbuild-plugin-add-wrapper",
   "repository": {
@@ -14,5 +18,8 @@
     "url": "git+https://github.com/egnor/esbuild-plugin-add-wrapper.git"
   },
   "type": "module",
-  "version": "1.0.3"
+  "version": "1.0.4",
+  "dependencies": {
+    "esbuild": "^0.25.0"
+  }
 }
