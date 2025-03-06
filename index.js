@@ -5,7 +5,7 @@ import process from "node:process";
 
 export default function esbuildAddWrapper({
   filter,                        // modules to wrap
-  loader = "js",                 // wrapper esbuild loader ("jsx", "ts", etc)
+  loader = "default",            // wrapper esbuild loader ("jsx", "ts", etc)
   innerName = "wrapped-module",  // alias for wrapped module inside wrapper
   wrapper                        // import spec for the wrapper module
 }) {
