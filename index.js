@@ -9,15 +9,18 @@ export default function esbuildAddWrapper({
   innerName = "wrapped-module",  // alias for wrapped module inside wrapper
   wrapper                        // import spec for the wrapper module
 }) {
-  if (!(filter instanceof RegExp)) {
-    throw new Error("esbuild-plugin-add-wrapper needs a filter RegExp param");
-  }
-  if (typeof wrapper !== "string" && !(wrapper instanceof String)) {
-    throw new Error("esbuild-plugin-add-wrapper needs a wrapper string param");
+  if (
+    !(filter instanceof RegExp) ||
+    typeof loader !== "string" ||
+    typeof innerName !== "string" ||
+    typeof wrapper !== "string"
+  ) {
+    throw new Error("Bad esbuild-plugin-add-wrapper option values");
   }
 
   // unique name for this instance in case multiple wrappers are in use
-  const name = `add-wrapper:${wrapper}`.replace("|", ":");
+  const slug = wrapper.replace(/^\.?\//, "").replace("|", "-");
+  const name = `add-wrapper-${slug}`;
 
   return {
     name,
