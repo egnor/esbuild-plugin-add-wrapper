@@ -21,40 +21,40 @@ export default function esbuildAddWrapper({
   const slug = wrapper.replace(/[^a-zA-Z0-9_]+/g, "_").replace(/^_|_$/g, "");
   const name = `add-wrapper-${slug}`;
   const unwrap = `unwrap-${slug}`;
+  const logPrefix = `🧅 [${path.basename(wrapper)}]`;
 
   return {
     name,
 
     async setup(build) {
       const resolveDir = build.initialOptions.absWorkingDir || process.cwd();
-      const wrapperPath = path.join(resolveDir, wrapper);
-      const wrapperData = {
-        contents: await fs.promises.readFile(wrapperPath, "utf8"),
+      const wrapPath = path.join(resolveDir, wrapper);
+      const wrapLoad = {
+        contents: await fs.promises.readFile(wrapPath, "utf8"),
         loader: wrapperLoader,
       };
 
       // Intercept loading of wrapped modules and redirect to the wrapper
       build.onLoad({ filter }, async (load) => {
-        console.debug(`[${name}] wrapping ${path.basename(load.path)}`);
-        return wrapperData;
+        const loadBase = path.basename(load.path);
+        console.debug(`${logPrefix} intercept load ${loadBase}`);
+        return wrapLoad;
       });
 
       build.onLoad({ filter, namespace: unwrap }, async (load) => {
         const base = path.basename(load.path);
-        console.debug(`[${name}] loading original ${base}`);
-        return {
-          contents: await fs.promises.readFile(load.path, "utf8")
-        }
+        console.debug(`${logPrefix} load original ${base}`);
+        return { contents: await fs.promises.readFile(load.path, "utf8") };
       });
 
-      const innerFilter = innerName.replace(/[/.*+?|()[]{}\\]/g, "\\$&");
-      build.onResolve({ filter: new RegExp(innerFilter) }, async (res) => {
-        const base = path.basename(res.importer);
+      const innerRx = innerName.replace(/[/.*+?|()[]{}\\]/g, "\\$&");
+      build.onResolve({ filter: new RegExp(`^${innerRx}$`) }, async (res) => {
+        const origBase = path.basename(res.importer);
         if (!res.importer.match(filter)) {
-          console.debug(`[${name}] ignoring "${res.path}" from ${base}`);
+          console.debug(`${logPrefix} ignoring "${res.path}" from ${origBase}`);
           return null;
         }
-        console.debug(`[${name}] resolving "${res.path}" to ${base}`);
+        console.debug(`${logPrefix} resolve "${res.path}" => ${origBase}`);
         return { path: res.importer, namespace: unwrap };
       });
     }
