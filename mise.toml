@@ -1,0 +1,8 @@
+[tools]
+bun = "1.2"
+
+[settings]
+experimental = true
+
+[hooks]
+postinstall = "bun install"

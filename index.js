@@ -1,17 +1,16 @@
-import * as esbuild from "esbuild";
 import fs from "node:fs";
-import { dirname } from "node:path";
+import path from "node:path";
 import process from "node:process";
 
 export default function esbuildAddWrapper({
   filter,                        // modules to wrap
-  loader = "default",            // wrapper esbuild loader ("jsx", "ts", etc)
   innerName = "wrapped-module",  // alias for wrapped module inside wrapper
-  wrapper                        // import spec for the wrapper module
+  wrapper,                       // import spec for the wrapper module
+  wrapperLoader,                 // wrapper esbuild loader ("jsx", "ts", etc)
 }) {
   if (
     !(filter instanceof RegExp) ||
-    typeof loader !== "string" ||
+    !["undefined", "string"].includes(typeof wrapperLoader) ||
     typeof innerName !== "string" ||
     typeof wrapper !== "string"
   ) {
@@ -19,70 +18,45 @@ export default function esbuildAddWrapper({
   }
 
   // unique name for this instance in case multiple wrappers are in use
-  const slug = wrapper.replace(/^\.?\//, "").replace("|", "-");
+  const slug = wrapper.replace(/[^a-zA-Z0-9_]+/g, "_").replace(/^_|_$/g, "");
   const name = `add-wrapper-${slug}`;
+  const unwrap = `unwrap-${slug}`;
 
   return {
     name,
 
-    setup(build) {
+    async setup(build) {
       const resolveDir = build.initialOptions.absWorkingDir || process.cwd();
-
-      // Intercept resolution of selected modules and redirect to the wrapper
-      build.onResolve({ filter }, async ({ path, namespace, ...args }) => {
-        // Avoid mutual recursion by appending our tag to the namespace
-        const nameRx = new RegExp(`\\b${name.replace(/(?=\W)/g, "\\")}\\b`);
-        if (nameRx.test(namespace)) return undefined;
-        namespace = `${name}|${namespace}`;
-
-        // Resolve the inner module being wrapped
-        const innerOptions = { ...args, namespace };
-        const innerFound = await build.resolve(path, innerOptions);
-        if (innerFound.errors.length > 0) {
-          innerFound.errors.push({ text: "Couldn't resolve wrapped module" });
-          return innerFound;
-        }
-
-        // Resolve the specified wrapper module
-        const wrapperOptions = { kind: "entry-point", namespace, resolveDir };
-        const wrapperFound = await build.resolve(wrapper, wrapperOptions);
-        if (wrapperFound.errors.length > 0) {
-          wrapperFound.errors.push({ text: "Couldn't resolve module wrapper" });
-          return wrapperFound;
-        }
-
-        // Redirect to the wrapper
-        // - set the namespace to match our loader hook (below)
-        // - pass the wrapped module to that hook via pluginData
-        // - set a suffix to distinguish different uses of the same wrapper
-        return {
-          ...wrapperFound,
-          namespace: name,
-          pluginData: innerFound,  // Pass along the resolved inner module
-          suffix: `?${innerFound.namespace}:${innerFound.path}`,
-        };
-      });
-
-      // Intercept loading the wrapper module to pass pluginData along
-      // (I wish the default loader already did this!)
-      const loadFilter = { filter: /.*/, namespace: name };
-      build.onLoad(loadFilter, async ({ path, pluginData, suffix }) => {
-        return {
-          contents: await fs.promises.readFile(path, "utf8"),
-          loader,
-          pluginData,
-          resolveDir: dirname(path),
-          watchFiles: [path],
-        };
-      });
-
-      // Intercept resolving the inner module alias to redirect to the
-      // actual inner module based on the pluginData passed from above
-      const innerFilter = {
-        filter: new RegExp(`^${innerName.replace(/(?=\W)/g, "\\")}$`),
-        namespace: name,
+      const wrapperPath = path.join(resolveDir, wrapper);
+      const wrapperData = {
+        contents: await fs.promises.readFile(wrapperPath, "utf8"),
+        loader: wrapperLoader,
       };
-      build.onResolve(innerFilter, ({ pluginData }) => pluginData);
-    },
+
+      // Intercept loading of wrapped modules and redirect to the wrapper
+      build.onLoad({ filter }, async (load) => {
+        console.debug(`[${name}] wrapping ${path.basename(load.path)}`);
+        return wrapperData;
+      });
+
+      build.onLoad({ filter, namespace: unwrap }, async (load) => {
+        const base = path.basename(load.path);
+        console.debug(`[${name}] loading original ${base}`);
+        return {
+          contents: await fs.promises.readFile(load.path, "utf8")
+        }
+      });
+
+      const innerFilter = innerName.replace(/[/.*+?|()[]{}\\]/g, "\\$&");
+      build.onResolve({ filter: new RegExp(innerFilter) }, async (res) => {
+        const base = path.basename(res.importer);
+        if (!res.importer.match(filter)) {
+          console.debug(`[${name}] ignoring "${res.path}" from ${base}`);
+          return null;
+        }
+        console.debug(`[${name}] resolving "${res.path}" to ${base}`);
+        return { path: res.importer, namespace: unwrap };
+      });
+    }
   };
 };

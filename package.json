@@ -18,8 +18,5 @@
     "url": "git+https://github.com/egnor/esbuild-plugin-add-wrapper.git"
   },
   "type": "module",
-  "version": "1.0.6",
-  "dependencies": {
-    "esbuild": "^0.25.0"
-  }
+  "version": "1.0.7"
 }
